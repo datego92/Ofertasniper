@@ -2,7 +2,7 @@ name: Scan Amazon Offers
 
 on:
   schedule:
-    - cron: '0 8,14,20 * * *'   # 08:00, 14:00 y 20:00 UTC todos los días
+    - cron: '0 * * * *'          # Cada hora
   workflow_dispatch:              # Ejecución manual desde GitHub UI
 
 env:

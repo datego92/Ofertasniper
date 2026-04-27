@@ -2,7 +2,16 @@ import re
 import feedparser
 from typing import Optional
 
-CAMEL_TOP_DROPS_URL = "https://camelcamelcamel.com/top_drops/feed"
+CAMEL_TOP_DROPS_URL = "https://{subdomain}camelcamelcamel.com/top_drops/feed"
+
+_DOMAIN_SUBDOMAIN = {
+    "es": "es.",
+    "de": "de.",
+    "fr": "fr.",
+    "it": "it.",
+    "uk": "uk.",
+    "us": "",
+}
 
 _HEADERS = {
     "User-Agent": (
@@ -13,7 +22,9 @@ _HEADERS = {
 
 
 def fetch_top_drops(domain: str = "es") -> list[dict]:
-    url = f"{CAMEL_TOP_DROPS_URL}?category=video_games&domain={domain}"
+    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
+    url = CAMEL_TOP_DROPS_URL.format(subdomain=subdomain) + "?category=video_games"
+    print(f"[scraper] Fetching: {url}")
     feed = feedparser.parse(url, request_headers=_HEADERS)
 
     if feed.bozo:
@@ -56,27 +67,28 @@ def _parse_prices(
 ) -> tuple[Optional[float], Optional[float], Optional[float]]:
     text = f"{title} {summary}"
 
-    # Porcentaje de bajada: "30% drop", "30% off", "30% descuento"
-    drop_match = re.search(
-        r"(\d+(?:\.\d+)?)\s*%\s*(?:drop|off|descuento|bajada)",
+    # Formato real del feed: "down 23.78% ($34.00) to $108.99 from $142.99"
+    # o versión europea:     "down 23.78% (€34,00) to €108,99 from €142,99"
+    structured = re.search(
+        r"down\s+(\d+\.?\d*)\%.*?to\s+[€$](\d+[.,]\d{2}).*?from\s+[€$](\d+[.,]\d{2})",
         text,
         re.IGNORECASE,
     )
+    if structured:
+        discount_pct = float(structured.group(1))
+        current_price = float(structured.group(2).replace(",", "."))
+        original_price = float(structured.group(3).replace(",", "."))
+        return current_price, original_price, discount_pct
+
+    # Fallback: buscar cualquier porcentaje + precios sueltos
+    drop_match = re.search(r"(\d+\.?\d*)\s*%", text)
     discount_pct = float(drop_match.group(1)) if drop_match else None
 
-    # Precios en formato europeo: €29,99 / 29.99€ / EUR 29.99
-    raw_prices = re.findall(
-        r"(?:€|EUR\s{0,2})(\d{1,3}[.,]\d{2})", text, re.IGNORECASE
-    )
-    if not raw_prices:
-        raw_prices = re.findall(r"(\d{1,3}[.,]\d{2})\s*€", text)
-
+    raw_prices = re.findall(r"[€$](\d+[.,]\d{2})", text)
     prices = sorted({float(p.replace(",", ".")) for p in raw_prices})
 
     if len(prices) >= 2:
         current_price, original_price = prices[0], prices[-1]
-        if not discount_pct and original_price > 0:
-            discount_pct = round((1 - current_price / original_price) * 100, 1)
     elif len(prices) == 1:
         current_price, original_price = prices[0], None
     else:
