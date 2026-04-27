@@ -23,7 +23,7 @@ _HEADERS = {
 
 def fetch_top_drops(domain: str = "es") -> list[dict]:
     subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
-    url = CAMEL_TOP_DROPS_URL.format(subdomain=subdomain) + "?category=video_games"
+    url = CAMEL_TOP_DROPS_URL.format(subdomain=subdomain) + "?category=video_games&days=30"
     print(f"[scraper] Fetching: {url}")
     feed = feedparser.parse(url, request_headers=_HEADERS)
 

@@ -16,15 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Descarga el historial del run anterior para deduplicación
-      - name: Download previous history artifact
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          name: offers-history
-          path: data/
-          if_no_artifact_found: warn
-          workflow_conclusion: success
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -39,13 +30,3 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python src/main.py
-
-      # Persiste el historial actualizado como artifact (retención 90 días)
-      - name: Upload updated history artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: offers-history
-          path: data/history.json
-          retention-days: 90
-          if-no-files-found: warn

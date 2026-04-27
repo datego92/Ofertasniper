@@ -30,7 +30,6 @@ def _format_message(offers: list[dict], cat_config: dict) -> str:
         original = offer.get("original_price")
         discount = offer.get("discount_pct")
         amazon_url = offer.get("amazon_url", "")
-        camel_url = offer.get("camel_url", "")
 
         price_str = f"<b>{price:.2f}€</b>" if price else "—"
         if original:
@@ -39,7 +38,7 @@ def _format_message(offers: list[dict], cat_config: dict) -> str:
 
         lines.append(
             f"• <a href='{amazon_url}'>{title}</a>\n"
-            f"  {price_str}{discount_str} · <a href='{camel_url}'>Historial</a>"
+            f"  {price_str}{discount_str}"
         )
 
     if len(offers) > MAX_OFFERS_PER_MESSAGE:
