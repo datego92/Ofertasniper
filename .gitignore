@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Ofertasniper — historial local (gestionado por GitHub Actions artifacts)
+data/history.json

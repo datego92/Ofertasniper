@@ -1,0 +1,57 @@
+categories:
+  nintendo_switch:
+    name: "Nintendo Switch"
+    emoji: "🟥"
+    keywords:
+      - "Nintendo Switch"
+      - "Nintendo"
+      - "Zelda"
+      - "Mario"
+      - "Pokemon"
+      - "Pokémon"
+      - "Metroid"
+      - "Kirby"
+      - "Animal Crossing"
+      - "Splatoon"
+      - "Fire Emblem"
+      - "Donkey Kong"
+      - "Pikmin"
+      - "Xenoblade"
+      - "Switch"
+    exclude_keywords:
+      - "PS5"
+      - "PlayStation"
+      - "Xbox"
+      - "PC"
+    min_discount_percent: 20
+    max_price: 65.0
+
+  ps5:
+    name: "PlayStation 5"
+    emoji: "🔵"
+    keywords:
+      - "PS5"
+      - "PlayStation 5"
+      - "PlayStation5"
+    exclude_keywords:
+      - "Nintendo"
+      - "Xbox"
+      - "Switch"
+    min_discount_percent: 20
+    max_price: 75.0
+
+# Para agregar una nueva categoría, copia el bloque anterior y ajusta los campos.
+# Ejemplo de categoría futura:
+#
+# xbox:
+#   name: "Xbox"
+#   emoji: "🟩"
+#   keywords:
+#     - "Xbox"
+#     - "Halo"
+#     - "Forza"
+#   exclude_keywords:
+#     - "PS5"
+#     - "Nintendo"
+#   min_discount_percent: 20
+#   max_price: 75.0
