@@ -3,6 +3,7 @@ import feedparser
 from typing import Optional
 
 CAMEL_TOP_DROPS_URL = "https://{subdomain}camelcamelcamel.com/top_drops/feed"
+CAMEL_PRODUCT_RSS_URL = "https://{subdomain}camelcamelcamel.com/product/{asin}/rss"
 
 _DOMAIN_SUBDOMAIN = {
     "es": "es.",
@@ -32,14 +33,30 @@ def fetch_top_drops(domain: str = "es") -> list[dict]:
 
     offers = []
     for entry in feed.entries:
-        offer = _parse_entry(entry)
+        offer = _parse_entry(entry, domain)
         if offer:
             offers.append(offer)
 
     return offers
 
 
-def _parse_entry(entry) -> Optional[dict]:
+def fetch_min_price(asin: str, domain: str = "es") -> Optional[float]:
+    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
+    url = CAMEL_PRODUCT_RSS_URL.format(subdomain=subdomain, asin=asin)
+    try:
+        feed = feedparser.parse(url, request_headers=_HEADERS)
+        prices = []
+        for entry in feed.entries:
+            text = f"{entry.get('title', '')} {entry.get('summary', '')}"
+            found = re.findall(r"[€$](\d+[.,]\d{2})", text)
+            prices.extend(float(p.replace(",", ".")) for p in found)
+        return min(prices) if prices else None
+    except Exception as e:
+        print(f"[scraper] Could not fetch min price for {asin}: {e}")
+        return None
+
+
+def _parse_entry(entry, domain: str) -> Optional[dict]:
     link = entry.get("link", "")
     asin_match = re.search(r"/product/([A-Z0-9]{10})", link)
     if not asin_match:
@@ -55,10 +72,11 @@ def _parse_entry(entry) -> Optional[dict]:
         "asin": asin,
         "title": title,
         "amazon_url": f"https://www.amazon.es/dp/{asin}",
-        "camel_url": link,
+        "image_url": f"https://images-eu.ssl-images-amazon.com/images/P/{asin}.01._SX500_.jpg",
         "current_price": current_price,
         "original_price": original_price,
         "discount_pct": discount_pct,
+        "min_price": None,
     }
 
 

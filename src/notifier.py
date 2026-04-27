@@ -2,8 +2,9 @@ import os
 import requests
 from typing import Optional
 
-TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
-MAX_OFFERS_PER_MESSAGE = 10
+TELEGRAM_SEND_PHOTO = "https://api.telegram.org/bot{token}/sendPhoto"
+TELEGRAM_SEND_MESSAGE = "https://api.telegram.org/bot{token}/sendMessage"
+MAX_OFFERS_PER_CATEGORY = 10
 
 
 def send_offers(offers_by_category: dict, categories_config: dict) -> None:
@@ -12,45 +13,70 @@ def send_offers(offers_by_category: dict, categories_config: dict) -> None:
 
     for cat_key, offers in offers_by_category.items():
         cat_config = categories_config[cat_key]
-        message = _format_message(offers, cat_config)
-        _send(token, chat_id, message)
-        print(f"[notifier] Sent {len(offers)} offers for category '{cat_key}'")
+        for offer in offers[:MAX_OFFERS_PER_CATEGORY]:
+            _send_offer(token, chat_id, offer, cat_config)
+        print(f"[notifier] Sent {min(len(offers), MAX_OFFERS_PER_CATEGORY)} offers for '{cat_key}'")
 
 
-def _format_message(offers: list[dict], cat_config: dict) -> str:
+def _send_offer(token: str, chat_id: str, offer: dict, cat_config: dict) -> None:
+    caption = _format_caption(offer, cat_config)
+    image_url = offer.get("image_url")
+
+    if image_url and _try_send_photo(token, chat_id, image_url, caption):
+        return
+
+    # Fallback a mensaje de texto si la imagen no está disponible
+    _send_message(token, chat_id, caption)
+
+
+def _format_caption(offer: dict, cat_config: dict) -> str:
     emoji = cat_config.get("emoji", "🎮")
     name = cat_config.get("name", "")
-    visible = offers[:MAX_OFFERS_PER_MESSAGE]
+    title = _truncate(offer.get("title", "Sin título"), 80)
+    amazon_url = offer.get("amazon_url", "")
 
-    lines = [f"{emoji} <b>{name} — {len(offers)} oferta(s)</b>\n"]
+    current = offer.get("current_price")
+    original = offer.get("original_price")
+    min_price = offer.get("min_price")
 
-    for offer in visible:
-        title = _truncate(offer.get("title", "Sin título"), 55)
-        price = offer.get("current_price")
-        original = offer.get("original_price")
-        discount = offer.get("discount_pct")
-        amazon_url = offer.get("amazon_url", "")
+    price_actual = f"<b>{_fmt(current)}</b>" if current else "—"
+    price_recomendado = f"<s>{_fmt(original)}</s>" if original else "—"
+    price_minimo = _fmt(min_price) if min_price else "—"
 
-        price_str = f"<b>{price:.2f}€</b>" if price else "—"
-        if original:
-            price_str += f" <s>{original:.2f}€</s>"
-        discount_str = f" (-{discount:.0f}%)" if discount else ""
+    return (
+        f"{emoji} <b>{name}</b>\n\n"
+        f"<b>{title}</b>\n\n"
+        f"💸 <b>P. recomendado</b>   {price_recomendado}\n"
+        f"📉 <b>P. mínimo 30d</b>    {price_minimo}\n"
+        f"🏷️ <b>P. actual</b>        {price_actual}\n\n"
+        f"<a href='{amazon_url}'>🛒 Ver oferta en Amazon</a>"
+    )
 
-        lines.append(
-            f"• <a href='{amazon_url}'>{title}</a>\n"
-            f"  {price_str}{discount_str}"
+
+def _try_send_photo(token: str, chat_id: str, image_url: str, caption: str) -> bool:
+    try:
+        resp = requests.post(
+            TELEGRAM_SEND_PHOTO.format(token=token),
+            json={
+                "chat_id": chat_id,
+                "photo": image_url,
+                "caption": caption,
+                "parse_mode": "HTML",
+            },
+            timeout=10,
         )
+        if resp.ok:
+            return True
+        print(f"[notifier] Photo send failed ({resp.status_code}), falling back to text")
+        return False
+    except Exception as e:
+        print(f"[notifier] Photo send error: {e}, falling back to text")
+        return False
 
-    if len(offers) > MAX_OFFERS_PER_MESSAGE:
-        lines.append(f"\n<i>... y {len(offers) - MAX_OFFERS_PER_MESSAGE} más.</i>")
 
-    return "\n".join(lines)
-
-
-def _send(token: str, chat_id: str, text: str) -> None:
-    url = TELEGRAM_API.format(token=token)
+def _send_message(token: str, chat_id: str, text: str) -> None:
     resp = requests.post(
-        url,
+        TELEGRAM_SEND_MESSAGE.format(token=token),
         json={
             "chat_id": chat_id,
             "text": text,
@@ -60,6 +86,12 @@ def _send(token: str, chat_id: str, text: str) -> None:
         timeout=10,
     )
     resp.raise_for_status()
+
+
+def _fmt(price: Optional[float]) -> str:
+    if price is None:
+        return "—"
+    return f"{price:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def _truncate(text: str, max_len: int) -> str:
