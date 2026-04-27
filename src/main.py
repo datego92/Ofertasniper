@@ -18,6 +18,9 @@ def main() -> None:
     print("[main] Fetching top drops from CamelCamelCamel (amazon.es)...")
     offers = fetch_top_drops(domain="es")
     print(f"[main] Raw offers found: {len(offers)}")
+    for o in offers[:5]:
+        print(f"  TITLE: {o['title']}")
+        print(f"  PRICE: {o['current_price']} | ORIGINAL: {o['original_price']} | DISCOUNT: {o['discount_pct']}%")
 
     offers_by_cat = filter_offers(offers, categories)
     total_matched = sum(len(v) for v in offers_by_cat.values())
