@@ -11,8 +11,11 @@ from notifier import send_offers
 def main() -> None:
     categories = load_categories()
 
-    print("[main] Fetching 30-day top drops from CamelCamelCamel (amazon.es)...")
-    offers = fetch_top_drops(domain="es")
+    min_discount = min(
+        cat.get("min_discount_percent", 0) for cat in categories.values()
+    )
+    print(f"[main] Fetching 30-day top drops from CamelCamelCamel (amazon.es, min {min_discount}% off)...")
+    offers = fetch_top_drops(domain="es", min_discount=min_discount)
     print(f"[main] Raw offers found: {len(offers)}")
     for o in offers[:5]:
         print(f"  TITLE: {o['title']}")

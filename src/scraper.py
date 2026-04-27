@@ -22,9 +22,9 @@ _HEADERS = {
 }
 
 
-def fetch_top_drops(domain: str = "es") -> list[dict]:
+def fetch_top_drops(domain: str = "es", min_discount: int = 0) -> list[dict]:
     subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
-    url = CAMEL_TOP_DROPS_URL.format(subdomain=subdomain) + "?category=video_games&days=30"
+    url = CAMEL_TOP_DROPS_URL.format(subdomain=subdomain) + f"?category=video_games&days=30&percent={min_discount}"
     print(f"[scraper] Fetching: {url}")
     feed = feedparser.parse(url, request_headers=_HEADERS)
 
@@ -85,10 +85,10 @@ def _parse_prices(
 ) -> tuple[Optional[float], Optional[float], Optional[float]]:
     text = f"{title} {summary}"
 
-    # Formato real del feed: "down 23.78% ($34.00) to $108.99 from $142.99"
-    # o versión europea:     "down 23.78% (€34,00) to €108,99 from €142,99"
+    # Formato ES: "down 11.85% (2,77€) to 20,61€ from 23,38€"
+    # Formato US: "down 23.78% ($34.00) to $108.99 from $142.99"
     structured = re.search(
-        r"down\s+(\d+\.?\d*)\%.*?to\s+[€$](\d+[.,]\d{2}).*?from\s+[€$](\d+[.,]\d{2})",
+        r"down\s+(\d+\.?\d*)\%.*?to\s+[€$]?(\d+[.,]\d{2})[€$]?.*?from\s+[€$]?(\d+[.,]\d{2})[€$]?",
         text,
         re.IGNORECASE,
     )
@@ -102,8 +102,8 @@ def _parse_prices(
     drop_match = re.search(r"(\d+\.?\d*)\s*%", text)
     discount_pct = float(drop_match.group(1)) if drop_match else None
 
-    raw_prices = re.findall(r"[€$](\d+[.,]\d{2})", text)
-    prices = sorted({float(p.replace(",", ".")) for p in raw_prices})
+    raw_prices = re.findall(r"[€$]?(\d+[.,]\d{2})[€$]?", text)
+    prices = sorted({float(p.replace(",", ".")) for p in raw_prices if float(p.replace(",", ".")) > 0.5})
 
     if len(prices) >= 2:
         current_price, original_price = prices[0], prices[-1]
