@@ -1,9 +1,9 @@
 import re
+import requests
 import feedparser
 from typing import Optional
 
 CAMEL_TOP_DROPS_URL = "https://{subdomain}camelcamelcamel.com/top_drops/feed"
-CAMEL_PRODUCT_RSS_URL = "https://{subdomain}camelcamelcamel.com/product/{asin}/rss"
 
 _DOMAIN_SUBDOMAIN = {
     "es": "es.",
@@ -33,50 +33,59 @@ def fetch_top_drops(domain: str = "es", min_discount: int = 0) -> list[dict]:
 
     offers = []
     for entry in feed.entries:
-        offer = _parse_entry(entry, domain)
+        offer = _parse_entry(entry)
         if offer:
             offers.append(offer)
 
     return offers
 
 
-def fetch_min_price(asin: str, domain: str = "es") -> Optional[float]:
-    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
-    url = CAMEL_PRODUCT_RSS_URL.format(subdomain=subdomain, asin=asin)
+def fetch_product_image(asin: str) -> Optional[str]:
+    url = f"https://www.amazon.es/dp/{asin}"
     try:
-        feed = feedparser.parse(url, request_headers=_HEADERS)
-        prices = []
-        for entry in feed.entries:
-            text = f"{entry.get('title', '')} {entry.get('summary', '')}"
-            found = re.findall(r"[€$](\d+[.,]\d{2})", text)
-            prices.extend(float(p.replace(",", ".")) for p in found)
-        return min(prices) if prices else None
+        resp = requests.get(url, headers=_HEADERS, timeout=8)
+        if resp.status_code != 200:
+            return None
+        # og:image es la imagen principal del producto
+        match = re.search(
+            r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+            resp.text,
+        )
+        if not match:
+            match = re.search(
+                r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+                resp.text,
+            )
+        return match.group(1) if match else None
     except Exception as e:
-        print(f"[scraper] Could not fetch min price for {asin}: {e}")
+        print(f"[scraper] Image fetch failed for {asin}: {e}")
         return None
 
 
-def _parse_entry(entry, domain: str) -> Optional[dict]:
+def _parse_entry(entry) -> Optional[dict]:
     link = entry.get("link", "")
     asin_match = re.search(r"/product/([A-Z0-9]{10})", link)
     if not asin_match:
         return None
 
     asin = asin_match.group(1)
-    title = entry.get("title", "").strip()
+    raw_title = entry.get("title", "").strip()
     summary = entry.get("summary", "")
 
-    current_price, original_price, discount_pct = _parse_prices(title, summary)
+    # Eliminar el sufijo de precio que añade CamelCamelCamel al título
+    # Formato: "Nombre del producto - down 11.85% (2,77€) to 20,61€ from 23,38€"
+    clean_title = re.sub(r"\s*-\s*down\s+[\d.]+%.*$", "", raw_title, flags=re.IGNORECASE).strip()
+
+    current_price, original_price, discount_pct = _parse_prices(raw_title, summary)
 
     return {
         "asin": asin,
-        "title": title,
+        "title": clean_title,
         "amazon_url": f"https://www.amazon.es/dp/{asin}",
-        "image_url": f"https://images-eu.ssl-images-amazon.com/images/P/{asin}.01._SX500_.jpg",
+        "image_url": None,
         "current_price": current_price,
         "original_price": original_price,
         "discount_pct": discount_pct,
-        "min_price": None,
     }
 
 
@@ -98,7 +107,6 @@ def _parse_prices(
         original_price = float(structured.group(3).replace(",", "."))
         return current_price, original_price, discount_pct
 
-    # Fallback: buscar cualquier porcentaje + precios sueltos
     drop_match = re.search(r"(\d+\.?\d*)\s*%", text)
     discount_pct = float(drop_match.group(1)) if drop_match else None
 

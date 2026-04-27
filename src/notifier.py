@@ -25,7 +25,6 @@ def _send_offer(token: str, chat_id: str, offer: dict, cat_config: dict) -> None
     if image_url and _try_send_photo(token, chat_id, image_url, caption):
         return
 
-    # Fallback a mensaje de texto si la imagen no está disponible
     _send_message(token, chat_id, caption)
 
 
@@ -37,17 +36,14 @@ def _format_caption(offer: dict, cat_config: dict) -> str:
 
     current = offer.get("current_price")
     original = offer.get("original_price")
-    min_price = offer.get("min_price")
 
     price_actual = f"<b>{_fmt(current)}</b>" if current else "—"
     price_recomendado = f"<s>{_fmt(original)}</s>" if original else "—"
-    price_minimo = _fmt(min_price) if min_price else "—"
 
     return (
         f"{emoji} <b>{name}</b>\n\n"
         f"<b>{title}</b>\n\n"
         f"💸 <b>P. recomendado</b>   {price_recomendado}\n"
-        f"📉 <b>P. mínimo 30d</b>    {price_minimo}\n"
         f"🏷️ <b>P. actual</b>        {price_actual}\n\n"
         f"<a href='{amazon_url}'>🛒 Ver oferta en Amazon</a>"
     )

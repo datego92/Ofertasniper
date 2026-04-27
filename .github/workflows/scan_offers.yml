@@ -16,6 +16,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set today's date
+        run: echo "TODAY=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+
+      # Cache con clave por fecha — se resetea automáticamente cada día
+      - name: Restore daily dedup cache
+        uses: actions/cache@v4
+        with:
+          path: data/sent_today.json
+          key: sent-offers-${{ env.TODAY }}
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
