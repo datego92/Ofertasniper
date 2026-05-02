@@ -81,12 +81,6 @@ def _parse_entry(entry) -> Optional[dict]:
     raw_title = entry.get("title", "").strip()
     summary = entry.get("summary", "")
 
-    # Debug temporal para ver el contenido real del feed
-    if "..." in raw_title:
-        print(f"[DEBUG] TITLE: {raw_title}")
-        print(f"[DEBUG] SUMMARY: {summary[:300]}")
-        print(f"[DEBUG] KEYS: {list(entry.keys())}")
-
     # El summary contiene el título completo en el formato:
     # "Amazon price of TITULO COMPLETO dropped X%..."
     full_title_match = re.search(
