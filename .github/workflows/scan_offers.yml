@@ -19,12 +19,15 @@ jobs:
       - name: Set today's date
         run: echo "TODAY=$(date +%Y-%m-%d)" >> $GITHUB_ENV
 
-      # Cache con clave por fecha — se resetea automáticamente cada día
+      # Clave única por run para poder actualizar; restore-keys busca la más reciente del día
       - name: Restore daily dedup cache
         uses: actions/cache@v4
         with:
           path: data/sent_today.json
-          key: sent-offers-${{ env.TODAY }}
+          key: sent-offers-${{ env.TODAY }}-${{ github.run_id }}
+          restore-keys: |
+            sent-offers-${{ env.TODAY }}-
+            sent-offers-${{ env.TODAY }}
 
       - name: Setup Python
         uses: actions/setup-python@v5

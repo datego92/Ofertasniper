@@ -1,10 +1,12 @@
 import os
+import time
 import requests
 from typing import Optional
 
 TELEGRAM_SEND_PHOTO = "https://api.telegram.org/bot{token}/sendPhoto"
 TELEGRAM_SEND_MESSAGE = "https://api.telegram.org/bot{token}/sendMessage"
 MAX_OFFERS_PER_CATEGORY = 10
+SEND_DELAY_SECONDS = 1.5
 
 
 def send_offers(offers_by_category: dict, categories_config: dict) -> None:
@@ -13,9 +15,15 @@ def send_offers(offers_by_category: dict, categories_config: dict) -> None:
 
     for cat_key, offers in offers_by_category.items():
         cat_config = categories_config[cat_key]
+        sent = 0
         for offer in offers[:MAX_OFFERS_PER_CATEGORY]:
-            _send_offer(token, chat_id, offer, cat_config)
-        print(f"[notifier] Sent {min(len(offers), MAX_OFFERS_PER_CATEGORY)} offers for '{cat_key}'")
+            try:
+                _send_offer(token, chat_id, offer, cat_config)
+                sent += 1
+                time.sleep(SEND_DELAY_SECONDS)
+            except Exception as e:
+                print(f"[notifier] Failed to send {offer.get('asin')}: {e}")
+        print(f"[notifier] Sent {sent}/{min(len(offers), MAX_OFFERS_PER_CATEGORY)} offers for '{cat_key}'")
 
 
 def _send_offer(token: str, chat_id: str, offer: dict, cat_config: dict) -> None:
