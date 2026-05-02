@@ -81,9 +81,18 @@ def _parse_entry(entry) -> Optional[dict]:
     raw_title = entry.get("title", "").strip()
     summary = entry.get("summary", "")
 
-    # Eliminar el sufijo de precio que añade CamelCamelCamel al título
-    # Formato: "Nombre del producto - down 11.85% (2,77€) to 20,61€ from 23,38€"
-    clean_title = re.sub(r"\s*-\s*down\s+[\d.]+%.*$", "", raw_title, flags=re.IGNORECASE).strip()
+    # El summary contiene el título completo en el formato:
+    # "Amazon price of TITULO COMPLETO dropped X%..."
+    full_title_match = re.search(
+        r"Amazon price of (.+?) (?:dropped|increased|has dropped|has increased)",
+        summary,
+        re.IGNORECASE,
+    )
+    if full_title_match:
+        clean_title = full_title_match.group(1).strip()
+    else:
+        # Fallback: eliminar el sufijo de precio del título del RSS
+        clean_title = re.sub(r"\s*-\s*down\s+[\d.]+%.*$", "", raw_title, flags=re.IGNORECASE).strip()
 
     current_price, original_price, discount_pct = _parse_prices(raw_title, summary)
 
