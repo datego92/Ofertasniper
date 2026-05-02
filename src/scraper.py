@@ -40,26 +40,33 @@ def fetch_top_drops(domain: str = "es", min_discount: int = 0) -> list[dict]:
     return offers
 
 
-def fetch_product_image(asin: str) -> Optional[str]:
+def fetch_product_details(asin: str) -> dict:
+    """Obtiene título completo e imagen desde la página de Amazon."""
     url = f"https://www.amazon.es/dp/{asin}"
+    result = {"title": None, "image_url": None}
     try:
         resp = requests.get(url, headers=_HEADERS, timeout=8)
         if resp.status_code != 200:
-            return None
-        # og:image es la imagen principal del producto
-        match = re.search(
-            r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
-            resp.text,
+            return result
+
+        title_match = (
+            re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']', resp.text)
+            or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']', resp.text)
         )
-        if not match:
-            match = re.search(
-                r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
-                resp.text,
-            )
-        return match.group(1) if match else None
+        if title_match:
+            result["title"] = title_match.group(1).strip()
+
+        img_match = (
+            re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', resp.text)
+            or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', resp.text)
+        )
+        if img_match:
+            result["image_url"] = img_match.group(1)
+
     except Exception as e:
-        print(f"[scraper] Image fetch failed for {asin}: {e}")
-        return None
+        print(f"[scraper] Details fetch failed for {asin}: {e}")
+
+    return result
 
 
 def _parse_entry(entry) -> Optional[dict]:
