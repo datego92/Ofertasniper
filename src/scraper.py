@@ -40,12 +40,14 @@ def fetch_top_drops(domain: str = "es", min_discount: int = 0) -> list[dict]:
     return offers
 
 
-def fetch_product_details(asin: str) -> dict:
-    """Obtiene título completo e imagen desde la página de Amazon."""
-    url = f"https://www.amazon.es/dp/{asin}"
+def fetch_product_details(asin: str, domain: str = "es") -> dict:
+    """Obtiene título completo e imagen desde CamelCamelCamel (evita bloqueos de Amazon)."""
+    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
+    url = f"https://{subdomain}camelcamelcamel.com/product/{asin}"
     result = {"title": None, "image_url": None}
     try:
         resp = requests.get(url, headers=_HEADERS, timeout=8)
+        print(f"[scraper] {asin}: HTTP {resp.status_code}")
         if resp.status_code != 200:
             return result
 

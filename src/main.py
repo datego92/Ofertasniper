@@ -23,7 +23,7 @@ def main() -> None:
     # (el RSS trunca los títulos, lo que rompe el matching de keywords)
     print("[main] Fetching full titles and images from Amazon...")
     for offer in offers:
-        details = fetch_product_details(offer["asin"])
+        details = fetch_product_details(offer["asin"], domain="es")
         if details["title"]:
             offer["title"] = details["title"]
         offer["image_url"] = details["image_url"]
