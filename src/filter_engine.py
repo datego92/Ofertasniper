@@ -40,31 +40,35 @@ def _keyword_matches(keyword: str, title: str) -> bool:
 
 def classify_offer(offer: dict, categories: dict) -> Optional[str]:
     title = offer.get("title", "")
+    asin = offer.get("asin", "")
 
     for cat_key, cat in categories.items():
-        excluded = any(
-            _keyword_matches(kw, title)
-            for kw in cat.get("exclude_keywords", [])
+        excluded_kw = next(
+            (kw for kw in cat.get("exclude_keywords", []) if _keyword_matches(kw, title)), None
         )
-        if excluded:
+        if excluded_kw:
+            print(f"  [{asin}] excluded from '{cat_key}' by keyword '{excluded_kw}'")
             continue
 
-        matched = any(
-            _keyword_matches(kw, title)
-            for kw in cat.get("keywords", [])
+        matched_kw = next(
+            (kw for kw in cat.get("keywords", []) if _keyword_matches(kw, title)), None
         )
-        if not matched:
+        if not matched_kw:
             continue
 
         discount = offer.get("discount_pct") or 0
-        if discount < cat.get("min_discount_percent", 0):
+        min_disc = cat.get("min_discount_percent", 0)
+        if discount < min_disc:
+            print(f"  [{asin}] '{title[:40]}' matched '{cat_key}' via '{matched_kw}' but discount {discount}% < {min_disc}%")
             continue
 
         max_price = cat.get("max_price")
         current = offer.get("current_price")
         if max_price and current and current > max_price:
+            print(f"  [{asin}] '{title[:40]}' matched '{cat_key}' but price {current}€ > max {max_price}€")
             continue
 
+        print(f"  [{asin}] MATCH '{cat_key}' via keyword '{matched_kw}' — {discount}% off")
         return cat_key
 
     return None
