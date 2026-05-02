@@ -5,6 +5,9 @@ categories:
     keywords:
       - "Nintendo Switch"
       - "Nintendo"
+      - "NSW"                  # Abreviatura común en títulos de Amazon
+      - "Switch OLED"
+      - "Switch Lite"
       - "Zelda"
       - "Mario"
       - "Pokemon"
@@ -17,31 +20,40 @@ categories:
       - "Donkey Kong"
       - "Pikmin"
       - "Xenoblade"
-      - "Switch"
+      - "Bayonetta"
+      - "Astral Chain"
+      - "Luigi"
+      - "Yoshi"
+      - "Starfox"
     exclude_keywords:
       - "PS5"
+      - "PS4"
       - "PlayStation"
       - "Xbox"
       - "PC"
     min_discount_percent: 20
     max_price: 65.0
 
-  ps5:
-    name: "PlayStation 5"
+  playstation:
+    name: "PlayStation"
     emoji: "🔵"
     keywords:
       - "PS5"
+      - "PS4"
       - "PlayStation 5"
+      - "PlayStation 4"
       - "PlayStation5"
+      - "PlayStation4"
     exclude_keywords:
       - "Nintendo"
       - "Xbox"
       - "Switch"
+      - "NSW"
     min_discount_percent: 20
-    max_price: 75.0
+    max_price: 80.0
 
-# Para agregar una nueva categoría, copia el bloque anterior y ajusta los campos.
-# Ejemplo de categoría futura:
+# Para agregar una nueva categoría, copia un bloque y ajusta los campos.
+# Ejemplo:
 #
 # xbox:
 #   name: "Xbox"
@@ -52,6 +64,8 @@ categories:
 #     - "Forza"
 #   exclude_keywords:
 #     - "PS5"
+#     - "PS4"
 #     - "Nintendo"
+#     - "NSW"
 #   min_discount_percent: 20
-#   max_price: 75.0
+#   max_price: 80.0
