@@ -1,10 +1,7 @@
 import re
 import requests
-import cloudscraper
 import feedparser
 from typing import Optional
-
-_scraper = cloudscraper.create_scraper()
 
 CAMEL_TOP_DROPS_URL = "https://{subdomain}camelcamelcamel.com/top_drops/feed"
 
@@ -43,13 +40,20 @@ def fetch_top_drops(domain: str = "es", min_discount: int = 0) -> list[dict]:
     return offers
 
 
-def fetch_product_details(asin: str, domain: str = "es") -> dict:
-    """Obtiene título completo e imagen desde CamelCamelCamel usando cloudscraper."""
-    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
-    url = f"https://{subdomain}camelcamelcamel.com/product/{asin}"
+def fetch_product_details(asin: str, domain: str = "es", scraperapi_key: str = "") -> dict:
+    """Obtiene título completo e imagen via ScraperAPI (bypasea Cloudflare)."""
     result = {"title": None, "image_url": None}
+    if not scraperapi_key:
+        return result
+
+    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
+    target = f"https://{subdomain}camelcamelcamel.com/product/{asin}"
     try:
-        resp = _scraper.get(url, timeout=10)
+        resp = requests.get(
+            "http://api.scraperapi.com",
+            params={"api_key": scraperapi_key, "url": target},
+            timeout=30,
+        )
         print(f"[scraper] {asin}: HTTP {resp.status_code}")
         if resp.status_code != 200:
             return result
@@ -94,8 +98,13 @@ def _parse_entry(entry) -> Optional[dict]:
     if full_title_match:
         clean_title = full_title_match.group(1).strip()
     else:
-        # Fallback: eliminar el sufijo de precio del título del RSS
-        clean_title = re.sub(r"\s*-\s*down\s+[\d.]+%.*$", "", raw_title, flags=re.IGNORECASE).strip()
+        # Eliminar el sufijo de precio del título del RSS
+        title_no_price = re.sub(r"\s*-\s*down\s+[\d.]+%.*$", "", raw_title, flags=re.IGNORECASE).strip()
+        # Si está truncado ("Inicio...Final"), mostrar solo el inicio con ellipsis limpio
+        if "..." in title_no_price:
+            clean_title = title_no_price.split("...")[0].rstrip(" -,") + "…"
+        else:
+            clean_title = title_no_price
 
     current_price, original_price, discount_pct = _parse_prices(raw_title, summary)
 

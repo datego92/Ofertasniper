@@ -19,7 +19,7 @@ jobs:
       - name: Set today's date
         run: echo "TODAY=$(date +%Y-%m-%d)" >> $GITHUB_ENV
 
-      # Clave única por run para poder actualizar; restore-keys busca la más reciente del día
+      # Caché de deduplicación diaria (se resetea cada día automáticamente)
       - name: Restore daily dedup cache
         uses: actions/cache@v4
         with:
@@ -28,6 +28,15 @@ jobs:
           restore-keys: |
             sent-offers-${{ env.TODAY }}-
             sent-offers-${{ env.TODAY }}
+
+      # Caché de títulos completos (persiste indefinidamente, crece con el tiempo)
+      - name: Restore title cache
+        uses: actions/cache@v4
+        with:
+          path: data/title_cache.json
+          key: title-cache-${{ github.run_id }}
+          restore-keys: |
+            title-cache-
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -42,4 +51,5 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SCRAPERAPI_KEY: ${{ secrets.SCRAPERAPI_KEY }}
         run: python src/main.py
