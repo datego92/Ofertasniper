@@ -7,6 +7,8 @@ def load_categories(config_path: str = "config/categories.yaml") -> dict:
         return yaml.safe_load(f)["categories"]
 
 
+_MIN_FUZZY_SEGMENT = 7  # Segmento mínimo para evitar falsos positivos
+
 def _keyword_matches(keyword: str, title: str) -> bool:
     kw = keyword.lower()
     t = title.lower()
@@ -15,24 +17,20 @@ def _keyword_matches(keyword: str, title: str) -> bool:
     if kw in t:
         return True
 
-    # Títulos truncados: "Inicio del título...final del título"
-    # CamelCamelCamel parte el título en el medio, lo que puede cortar keywords
-    # como "PlayStation 4" → "...tation 4 [...]"
-    # Comprobamos si el keyword fue partido exactamente en el punto de truncación
-    if "..." in t:
+    # Fuzzy solo para keywords largos (>= 7 chars) en títulos truncados
+    # Ejemplo: "PlayStation 4" partido como "Vengean...tation 4"
+    # kw[5:] = "tation 4" (8 chars >= 7) → coincide con inicio de 'after'
+    if len(kw) >= _MIN_FUZZY_SEGMENT and "..." in t:
         before, after = t.split("...", 1)
-        min_len = 4  # Mínimo de chars para evitar falsos positivos
 
-        # ¿El sufijo del keyword aparece al inicio de 'after'?
-        # Ejemplo: kw="playstation 4", after="tation 4 [importación...]"
-        # kw[5:] = "tation 4" → after.startswith("tation 4") → True
-        for i in range(min_len, len(kw)):
-            if after.startswith(kw[i:]):
+        for i in range(1, len(kw)):
+            suffix = kw[i:]
+            if len(suffix) >= _MIN_FUZZY_SEGMENT and after.startswith(suffix):
                 return True
 
-        # ¿El prefijo del keyword aparece al final de 'before'?
-        for i in range(min_len, len(kw)):
-            if before.endswith(kw[:i]):
+        for i in range(1, len(kw)):
+            prefix = kw[:i]
+            if len(prefix) >= _MIN_FUZZY_SEGMENT and before.endswith(prefix):
                 return True
 
     return False
