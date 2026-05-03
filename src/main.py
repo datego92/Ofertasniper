@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from scraper import fetch_top_drops
+from scraper import fetch_top_drops, fetch_product_details
 from filter_engine import load_categories, filter_offers
 from notifier import send_offers
 from dedup import load_sent, save_sent, filter_new, mark_sent
@@ -18,11 +18,20 @@ def main() -> None:
     print(f"[main] Fetching 30-day top drops (amazon.es, min {min_discount}% off)...")
     offers = fetch_top_drops(domain="es", min_discount=min_discount)
     print(f"[main] Raw offers found: {len(offers)}")
+
+    # Enriquecer título e imagen antes de filtrar
+    print("[main] Fetching full titles from CamelCamelCamel...")
+    for offer in offers:
+        details = fetch_product_details(offer["asin"], domain="es")
+        if details["title"]:
+            offer["title"] = details["title"]
+        offer["image_url"] = details["image_url"]
+
     for o in offers:
         print(f"  [{o['asin']}] {o['title']}")
 
     offers_by_cat = filter_offers(offers, categories)
-    total = sum(len(v) for v in offers_by_cat.items())
+    total = sum(len(v) for v in offers_by_cat.values())
     print(f"[main] Offers matching categories: {total}")
 
     new_offers_by_cat = filter_new(offers_by_cat, sent)

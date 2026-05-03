@@ -1,7 +1,10 @@
 import re
 import requests
+import cloudscraper
 import feedparser
 from typing import Optional
+
+_scraper = cloudscraper.create_scraper()
 
 CAMEL_TOP_DROPS_URL = "https://{subdomain}camelcamelcamel.com/top_drops/feed"
 
@@ -41,12 +44,12 @@ def fetch_top_drops(domain: str = "es", min_discount: int = 0) -> list[dict]:
 
 
 def fetch_product_details(asin: str, domain: str = "es") -> dict:
-    """Obtiene título completo e imagen desde CamelCamelCamel (evita bloqueos de Amazon)."""
+    """Obtiene título completo e imagen desde CamelCamelCamel usando cloudscraper."""
     subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
     url = f"https://{subdomain}camelcamelcamel.com/product/{asin}"
     result = {"title": None, "image_url": None}
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=8)
+        resp = _scraper.get(url, timeout=10)
         print(f"[scraper] {asin}: HTTP {resp.status_code}")
         if resp.status_code != 200:
             return result
