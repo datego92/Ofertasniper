@@ -21,28 +21,116 @@ _HEADERS = {
     )
 }
 
+# Cabeceras adicionales para parecer un navegador real al scrapear Amazon
+_AMAZON_HEADERS = {
+    **_HEADERS,
+    "Accept-Language": "es-ES,es;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+}
+
+# CamelCamelCamel: categorías que mapea su feed RSS
+# https://es.camelcamelcamel.com/top_drops/feed?category=X
+_CAMEL_CATEGORIES = [
+    "",               # todas (sin filtro)
+    "video_games",
+    "software",
+    "electronics",
+    "pc",
+    "music",
+    "books",
+    "toys",
+    "kitchen",
+    "sports",
+    "tools",
+    "clothing",
+    "beauty",
+    "health",
+    "automotive",
+    "grocery",
+    "movies",
+]
+
 
 def fetch_top_drops(domain: str = "es", min_discount: int = 0) -> list[dict]:
+    """Descarga el feed de CamelCamelCamel para TODAS las categorías y devuelve
+    la lista de ofertas sin duplicados (un ASIN puede aparecer en varios feeds)."""
     subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
-    url = CAMEL_TOP_DROPS_URL.format(subdomain=subdomain) + f"?category=video_games&days=30&percent={min_discount}"
-    print(f"[scraper] Fetching: {url}")
-    feed = feedparser.parse(url, request_headers=_HEADERS)
+    base_url = CAMEL_TOP_DROPS_URL.format(subdomain=subdomain)
 
-    if feed.bozo:
-        print(f"[scraper] Feed parse warning: {feed.bozo_exception}")
+    seen_asins: set[str] = set()
+    offers: list[dict] = []
 
-    offers = []
-    for entry in feed.entries:
-        offer = _parse_entry(entry)
-        if offer:
-            offers.append(offer)
+    for cat in _CAMEL_CATEGORIES:
+        params = f"days=30&percent={min_discount}"
+        if cat:
+            params = f"category={cat}&{params}"
+        url = f"{base_url}?{params}"
+        print(f"[scraper] Fetching: {url}")
+        feed = feedparser.parse(url, request_headers=_HEADERS)
 
+        if feed.bozo:
+            print(f"[scraper] Feed parse warning ({cat or 'all'}): {feed.bozo_exception}")
+
+        for entry in feed.entries:
+            offer = _parse_entry(entry)
+            if offer and offer["asin"] not in seen_asins:
+                seen_asins.add(offer["asin"])
+                offers.append(offer)
+
+    print(f"[scraper] Total unique offers across all categories: {len(offers)}")
     return offers
 
 
+def _fetch_image_from_amazon(asin: str, domain: str = "es") -> Optional[str]:
+    """Intenta obtener la imagen del producto directamente desde Amazon.
+    No requiere ScraperAPI — usa requests con cabeceras de navegador.
+    Devuelve la URL de imagen o None si no se puede obtener."""
+    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
+    # amazon.es, amazon.co.uk → dominios distintos
+    tld_map = {"es": "es", "de": "de", "fr": "fr", "it": "it", "uk": "co.uk", "us": "com"}
+    tld = tld_map.get(domain, "es")
+    url = f"https://www.amazon.{tld}/dp/{asin}"
+    try:
+        resp = requests.get(url, headers=_AMAZON_HEADERS, timeout=15)
+        if resp.status_code != 200:
+            print(f"[scraper] Amazon image fetch: HTTP {resp.status_code} for {asin}")
+            return None
+
+        # og:image suele apuntar a la imagen principal del producto en alta resolución
+        img_match = (
+            re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', resp.text)
+            or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', resp.text)
+        )
+        if img_match:
+            url_img = img_match.group(1)
+            # Asegurarse de que es una imagen del CDN de Amazon, no un placeholder
+            if "ssl-images-amazon.com" in url_img or "media-amazon.com" in url_img:
+                return url_img
+
+    except Exception as e:
+        print(f"[scraper] Amazon image fetch error for {asin}: {e}")
+
+    return None
+
+
 def fetch_product_details(asin: str, domain: str = "es", scraperapi_key: str = "") -> dict:
-    """Obtiene título completo e imagen via ScraperAPI (bypasea Cloudflare)."""
+    """Obtiene imagen del producto.
+
+    Estrategia (en orden de preferencia):
+    1. Amazon directamente (gratis, sin dependencias externas).
+    2. CamelCamelCamel via ScraperAPI (si SCRAPERAPI_KEY está configurada),
+       útil como fallback si Amazon bloquea la petición.
+    """
     result = {"title": None, "image_url": None}
+
+    # Estrategia 1: Amazon directo (gratis)
+    image_url = _fetch_image_from_amazon(asin, domain)
+    if image_url:
+        print(f"[scraper] {asin}: imagen obtenida de Amazon")
+        result["image_url"] = image_url
+        return result
+
+    # Estrategia 2: CamelCamelCamel via ScraperAPI (fallback de pago)
     if not scraperapi_key:
         return result
 
@@ -54,7 +142,7 @@ def fetch_product_details(asin: str, domain: str = "es", scraperapi_key: str = "
             params={"api_key": scraperapi_key, "url": target},
             timeout=30,
         )
-        print(f"[scraper] {asin}: HTTP {resp.status_code}")
+        print(f"[scraper] {asin} (ScraperAPI): HTTP {resp.status_code}")
         if resp.status_code != 200:
             return result
 
@@ -73,7 +161,7 @@ def fetch_product_details(asin: str, domain: str = "es", scraperapi_key: str = "
             result["image_url"] = img_match.group(1)
 
     except Exception as e:
-        print(f"[scraper] Details fetch failed for {asin}: {e}")
+        print(f"[scraper] ScraperAPI fetch failed for {asin}: {e}")
 
     return result
 
