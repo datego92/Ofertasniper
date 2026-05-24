@@ -1,8 +1,222 @@
 categories:
-  ofertas:
-    name: "Ofertas Amazon"
+
+  # ─────────────────────────────────────────────────────────────────
+  # VIDEOJUEGOS
+  # ─────────────────────────────────────────────────────────────────
+  videojuegos:
+    name: "Videojuegos"
+    emoji: "🎮"
+    keywords:
+      - "PlayStation"
+      - "Xbox"
+      - "Nintendo"
+      - "Switch"
+      - "PS5"
+      - "PS4"
+      - "juego"
+      - "gaming"
+      - "Steam Deck"
+      - "mando"
+      - "DualSense"
+      - "DualShock"
+      - "Joy-Con"
+      - "Oculus"
+      - "Meta Quest"
+    exclude_keywords: []
+    min_discount_percent: 15
+    max_price: 0
+
+  # ─────────────────────────────────────────────────────────────────
+  # INFORMÁTICA
+  # ─────────────────────────────────────────────────────────────────
+  informatica:
+    name: "Informática"
+    emoji: "💻"
+    keywords:
+      - "portátil"
+      - "laptop"
+      - "ordenador"
+      - "SSD"
+      - "disco duro"
+      - "HDD"
+      - "RAM"
+      - "memoria"
+      - "monitor"
+      - "teclado mecánico"
+      - "ratón"
+      - "router"
+      - "NAS"
+      - "GPU"
+      - "tarjeta gráfica"
+      - "procesador"
+      - "CPU"
+      - "webcam"
+      - "impresora"
+      - "hub USB"
+      - "USB-C"
+      - "MacBook"
+      - "Raspberry Pi"
+    exclude_keywords:
+      - "teclado musical"
+      - "teclado piano"
+    min_discount_percent: 15
+    max_price: 0
+
+  # ─────────────────────────────────────────────────────────────────
+  # MÓVILES & TABLETS
+  # ─────────────────────────────────────────────────────────────────
+  moviles:
+    name: "Móviles & Tablets"
+    emoji: "📱"
+    keywords:
+      - "iPhone"
+      - "Samsung Galaxy"
+      - "Xiaomi"
+      - "OPPO"
+      - "OnePlus"
+      - "Realme"
+      - "Motorola"
+      - "tablet"
+      - "iPad"
+      - "smartphone"
+      - "móvil"
+    exclude_keywords: []
+    min_discount_percent: 10
+    max_price: 0
+
+  # ─────────────────────────────────────────────────────────────────
+  # AUDIO & MÚSICA
+  # ─────────────────────────────────────────────────────────────────
+  audio:
+    name: "Audio & Música"
+    emoji: "🎵"
+    keywords:
+      - "auriculares"
+      - "altavoz"
+      - "altavoces"
+      - "barra de sonido"
+      - "guitarra"
+      - "bajo"
+      - "piano"
+      - "teclado musical"
+      - "teclado piano"
+      - "batería eléctrica"
+      - "micrófono"
+      - "vinilo"
+      - "tocadiscos"
+      - "amplificador"
+      - "Bose"
+      - "Sennheiser"
+      - "AirPods"
+      - "headphones"
+      - "earbuds"
+    exclude_keywords: []
+    min_discount_percent: 15
+    max_price: 0
+
+  # ─────────────────────────────────────────────────────────────────
+  # LIBROS
+  # ─────────────────────────────────────────────────────────────────
+  libros:
+    name: "Libros"
+    emoji: "📚"
+    keywords:
+      - "novela"
+      - "edición especial"
+      - "edición ilustrada"
+      - "trilogía"
+      - "saga"
+      - "omnibus"
+      - "cómic"
+      - "manga"
+      - "libro de"
+    exclude_keywords: []
+    min_discount_percent: 20
+    max_price: 30
+
+  # ─────────────────────────────────────────────────────────────────
+  # HOGAR & COCINA
+  # ─────────────────────────────────────────────────────────────────
+  hogar:
+    name: "Hogar & Cocina"
+    emoji: "🏠"
+    keywords:
+      - "aspiradora"
+      - "Roomba"
+      - "robot aspirador"
+      - "cafetera"
+      - "Nespresso"
+      - "Dolce Gusto"
+      - "freidora"
+      - "air fryer"
+      - "airfryer"
+      - "olla"
+      - "lavadora"
+      - "secadora"
+      - "lavavajillas"
+      - "frigorífico"
+      - "nevera"
+      - "microondas"
+      - "batidora"
+      - "thermomix"
+      - "Dyson"
+    exclude_keywords: []
+    min_discount_percent: 20
+    max_price: 0
+
+  # ─────────────────────────────────────────────────────────────────
+  # TV & CINE
+  # ─────────────────────────────────────────────────────────────────
+  tv_cine:
+    name: "TV & Cine"
+    emoji: "🎬"
+    keywords:
+      - "televisor"
+      - "Smart TV"
+      - "OLED"
+      - "QLED"
+      - "4K TV"
+      - "Blu-ray"
+      - "Blu Ray"
+      - "4K UHD"
+      - "proyector"
+      - "Fire TV"
+      - "Chromecast"
+      - "Apple TV"
+    exclude_keywords: []
+    min_discount_percent: 15
+    max_price: 0
+
+  # ─────────────────────────────────────────────────────────────────
+  # WEARABLES & DEPORTE
+  # ─────────────────────────────────────────────────────────────────
+  wearables:
+    name: "Wearables & Deporte"
+    emoji: "⌚"
+    keywords:
+      - "smartwatch"
+      - "reloj inteligente"
+      - "Apple Watch"
+      - "Galaxy Watch"
+      - "Fitbit"
+      - "Garmin"
+      - "pulsera"
+      - "pulsómetro"
+      - "bicicleta"
+      - "patinete"
+      - "treadmill"
+      - "cinta de correr"
+    exclude_keywords: []
+    min_discount_percent: 20
+    max_price: 0
+
+  # ─────────────────────────────────────────────────────────────────
+  # CATCH-ALL — todo lo que no encaje arriba
+  # ─────────────────────────────────────────────────────────────────
+  otras_ofertas:
+    name: "Otras Ofertas"
     emoji: "🔥"
     keywords: []          # Vacío = cualquier producto pasa
     exclude_keywords: []
     min_discount_percent: 20
-    max_price: 0          # 0 = sin límite de precio
+    max_price: 0

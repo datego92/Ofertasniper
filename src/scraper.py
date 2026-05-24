@@ -119,6 +119,48 @@ def _parse_entry(entry) -> Optional[dict]:
     }
 
 
+def _normalize_price(price_str: str) -> float:
+    """
+    Convierte un string de precio a float manejando formatos ES y US.
+
+    Formatos soportados:
+      ES con miles y decimal : "1.400,99" → 1400.99
+      ES solo miles          : "1.400"    → 1400.0
+      ES solo decimal        : "23,38"    → 23.38
+      US con miles y decimal : "1,400.99" → 1400.99
+      US solo decimal        : "108.99"   → 108.99
+    """
+    s = price_str.strip()
+    # ES: separador de miles = punto, decimal = coma  →  "1.400,99" o "1.400"
+    if re.match(r"^\d{1,3}(\.\d{3})+(,\d+)?$", s):
+        s = s.replace(".", "").replace(",", ".")
+    # ES: solo decimal con coma, sin miles  →  "23,38"
+    elif re.match(r"^\d+,\d+$", s):
+        s = s.replace(",", ".")
+    # US: separador de miles = coma  →  "1,400.99" o "1,400"
+    elif re.match(r"^\d{1,3}(,\d{3})+(\.\d+)?$", s):
+        s = s.replace(",", "")
+    # US/int: punto decimal normal  →  "108.99"  (ya es válido para float)
+    return float(s)
+
+
+# Patrón que captura precios en formato ES (1.400,99 | 1.400 | 23,38)
+# y US ($1,400.99 | $108.99) incluyendo el separador de miles completo.
+_PRICE_RE = re.compile(
+    r"[€$]?\s*"
+    r"("
+    r"\d{1,3}(?:\.\d{3})+(?:,\d+)?"  # ES miles: 1.400 | 1.400,99
+    r"|"
+    r"\d{1,3}(?:,\d{3})+(?:\.\d+)?"  # US miles: 1,400 | 1,400.99
+    r"|"
+    r"\d+,\d+"                        # ES decimal sin miles: 23,38
+    r"|"
+    r"\d+\.\d+"                       # US/int decimal: 108.99
+    r")"
+    r"\s*[€$]?"
+)
+
+
 def _parse_prices(
     title: str, summary: str
 ) -> tuple[Optional[float], Optional[float], Optional[float]]:
@@ -126,22 +168,32 @@ def _parse_prices(
 
     # Formato ES: "down 11.85% (2,77€) to 20,61€ from 23,38€"
     # Formato US: "down 23.78% ($34.00) to $108.99 from $142.99"
+    # Patrón de precio que soporta:
+    #   ES miles+decimal : 1.400,99  ES solo miles: 1.400
+    #   ES solo decimal  : 23,38     US decimal   : 108.99
+    _PRICE_PAT = (
+        r"\d{1,3}(?:\.\d{3})+(?:,\d+)?"   # ES miles  : 1.400 | 1.400,99
+        r"|\d{1,3}(?:,\d{3})+(?:\.\d+)?"  # US miles  : 1,400 | 1,400.99
+        r"|\d+[.,]\d+"                     # sin miles : 23,38 | 108.99
+    )
     structured = re.search(
-        r"down\s+(\d+\.?\d*)\%.*?to\s+[€$]?(\d+[.,]\d{2})[€$]?.*?from\s+[€$]?(\d+[.,]\d{2})[€$]?",
+        rf"down\s+(\d+\.?\d*)\%.*?to\s+[€$]?\s*({_PRICE_PAT})\s*[€$]?.*?from\s+[€$]?\s*({_PRICE_PAT})\s*[€$]?",
         text,
         re.IGNORECASE,
     )
     if structured:
         discount_pct = float(structured.group(1))
-        current_price = float(structured.group(2).replace(",", "."))
-        original_price = float(structured.group(3).replace(",", "."))
+        current_price = _normalize_price(structured.group(2))
+        original_price = _normalize_price(structured.group(3))
         return current_price, original_price, discount_pct
 
     drop_match = re.search(r"(\d+\.?\d*)\s*%", text)
     discount_pct = float(drop_match.group(1)) if drop_match else None
 
-    raw_prices = re.findall(r"[€$]?(\d+[.,]\d{2})[€$]?", text)
-    prices = sorted({float(p.replace(",", ".")) for p in raw_prices if float(p.replace(",", ".")) > 0.5})
+    raw_prices = _PRICE_RE.findall(text)
+    prices = sorted(
+        {_normalize_price(p) for p in raw_prices if _normalize_price(p) > 0.5}
+    )
 
     if len(prices) >= 2:
         current_price, original_price = prices[0], prices[-1]

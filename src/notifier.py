@@ -44,15 +44,17 @@ def _format_caption(offer: dict, cat_config: dict) -> str:
 
     current = offer.get("current_price")
     original = offer.get("original_price")
+    discount = offer.get("discount_pct")
 
     price_actual = f"<b>{_fmt(current)}</b>" if current else "—"
     price_recomendado = f"<s>{_fmt(original)}</s>" if original else "—"
+    discount_str = f"  <b>(-{discount:.0f}%)</b>" if discount else ""
 
     return (
         f"{emoji} <b>{name}</b>\n\n"
         f"<b>{title}</b>\n\n"
         f"💸 <b>P. recomendado</b>   {price_recomendado}\n"
-        f"🏷️ <b>P. actual</b>        {price_actual}\n\n"
+        f"🏷️ <b>P. actual</b>        {price_actual}{discount_str}\n\n"
         f"<a href='{amazon_url}'>🛒 Ver oferta en Amazon</a>"
     )
 
