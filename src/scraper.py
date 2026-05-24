@@ -85,7 +85,6 @@ def _fetch_image_from_amazon(asin: str, domain: str = "es") -> Optional[str]:
     """Intenta obtener la imagen del producto directamente desde Amazon.
     No requiere ScraperAPI — usa requests con cabeceras de navegador.
     Devuelve la URL de imagen o None si no se puede obtener."""
-    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
     # amazon.es, amazon.co.uk → dominios distintos
     tld_map = {"es": "es", "de": "de", "fr": "fr", "it": "it", "uk": "co.uk", "us": "com"}
     tld = tld_map.get(domain, "es")
@@ -113,56 +112,14 @@ def _fetch_image_from_amazon(asin: str, domain: str = "es") -> Optional[str]:
     return None
 
 
-def fetch_product_details(asin: str, domain: str = "es", scraperapi_key: str = "") -> dict:
-    """Obtiene imagen del producto.
-
-    Estrategia (en orden de preferencia):
-    1. Amazon directamente (gratis, sin dependencias externas).
-    2. CamelCamelCamel via ScraperAPI (si SCRAPERAPI_KEY está configurada),
-       útil como fallback si Amazon bloquea la petición.
-    """
+def fetch_product_details(asin: str, domain: str = "es") -> dict:
+    """Obtiene la imagen del producto directamente desde Amazon (gratis, sin APIs externas)."""
     result = {"title": None, "image_url": None}
-
-    # Estrategia 1: Amazon directo (gratis)
-    image_url = _fetch_image_from_amazon(asin, domain)
-    if image_url:
+    result["image_url"] = _fetch_image_from_amazon(asin, domain)
+    if result["image_url"]:
         print(f"[scraper] {asin}: imagen obtenida de Amazon")
-        result["image_url"] = image_url
-        return result
-
-    # Estrategia 2: CamelCamelCamel via ScraperAPI (fallback de pago)
-    if not scraperapi_key:
-        return result
-
-    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
-    target = f"https://{subdomain}camelcamelcamel.com/product/{asin}"
-    try:
-        resp = requests.get(
-            "http://api.scraperapi.com",
-            params={"api_key": scraperapi_key, "url": target},
-            timeout=30,
-        )
-        print(f"[scraper] {asin} (ScraperAPI): HTTP {resp.status_code}")
-        if resp.status_code != 200:
-            return result
-
-        title_match = (
-            re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']', resp.text)
-            or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']', resp.text)
-        )
-        if title_match:
-            result["title"] = title_match.group(1).strip()
-
-        img_match = (
-            re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', resp.text)
-            or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', resp.text)
-        )
-        if img_match:
-            result["image_url"] = img_match.group(1)
-
-    except Exception as e:
-        print(f"[scraper] ScraperAPI fetch failed for {asin}: {e}")
-
+    else:
+        print(f"[scraper] {asin}: no se pudo obtener imagen")
     return result
 
 

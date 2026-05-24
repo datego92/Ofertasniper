@@ -14,7 +14,6 @@ def main() -> None:
     categories = load_categories()
     sent = load_sent()
     title_cache = load_cache()
-    scraperapi_key = os.environ.get("SCRAPERAPI_KEY", "")
 
     print(f"[main] ASINs already sent today: {len(sent)}")
     print(f"[main] Titles in cache: {len(title_cache)}")
@@ -24,20 +23,18 @@ def main() -> None:
     offers = fetch_top_drops(domain="es", min_discount=min_discount)
     print(f"[main] Raw offers found: {len(offers)}")
 
-    # Enriquecer con título e imagen — primero desde caché, luego via ScraperAPI
+    # Enriquecer con imagen — primero desde caché, luego directo desde Amazon
     cache_updated = False
     for offer in offers:
         asin = offer["asin"]
         if asin in title_cache:
-            offer["title"] = title_cache[asin]["title"]
+            offer["title"] = title_cache[asin].get("title", offer["title"])
             offer["image_url"] = title_cache[asin].get("image_url")
-        elif scraperapi_key:
-            details = fetch_product_details(asin, domain="es", scraperapi_key=scraperapi_key)
-            if details["title"]:
-                offer["title"] = details["title"]
-                offer["image_url"] = details["image_url"]
-                title_cache[asin] = {"title": details["title"], "image_url": details["image_url"]}
-                cache_updated = True
+        else:
+            details = fetch_product_details(asin, domain="es")
+            offer["image_url"] = details["image_url"]
+            title_cache[asin] = {"title": offer["title"], "image_url": details["image_url"]}
+            cache_updated = True
 
     if cache_updated:
         save_cache(title_cache)
