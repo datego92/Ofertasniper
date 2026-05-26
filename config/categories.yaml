@@ -6,7 +6,10 @@ categories:
   videojuegos:
     name: "Videojuegos"
     emoji: "🎮"
-    keywords:
+    amazon_nodes:           # Nodos del breadcrumb de Amazon (clasificación principal)
+      - "Videojuegos"
+      - "Video Games"
+    keywords:               # Fallback si Amazon no devuelve categoría
       - "PlayStation"
       - "Xbox"
       - "Nintendo"
@@ -32,6 +35,10 @@ categories:
   informatica:
     name: "Informática"
     emoji: "💻"
+    amazon_nodes:
+      - "Informática"
+      - "Computers"
+      - "PC"
     keywords:
       - "portátil"
       - "laptop"
@@ -68,6 +75,11 @@ categories:
   moviles:
     name: "Móviles & Tablets"
     emoji: "📱"
+    amazon_nodes:
+      - "Electrónica"       # Amazon ES agrupa móviles aquí; se refina con keywords
+      - "Smartphones y Teléfonos Básicos"
+      - "Tablets"
+      - "Cell Phones & Accessories"
     keywords:
       - "iPhone"
       - "Samsung Galaxy"
@@ -90,6 +102,11 @@ categories:
   audio:
     name: "Audio & Música"
     emoji: "🎵"
+    amazon_nodes:
+      - "Instrumentos musicales"
+      - "Musical Instruments"
+      - "Hi-Fi y Audio"
+      - "Auriculares"
     keywords:
       - "auriculares"
       - "altavoz"
@@ -120,6 +137,10 @@ categories:
   libros:
     name: "Libros"
     emoji: "📚"
+    amazon_nodes:
+      - "Libros"
+      - "Books"
+      - "eBooks Kindle"
     keywords:
       - "novela"
       - "edición especial"
@@ -140,6 +161,11 @@ categories:
   hogar:
     name: "Hogar & Cocina"
     emoji: "🏠"
+    amazon_nodes:
+      - "Hogar y cocina"
+      - "Hogar y Cocina"
+      - "Grandes electrodomésticos"
+      - "Home & Kitchen"
     keywords:
       - "aspiradora"
       - "Roomba"
@@ -170,6 +196,10 @@ categories:
   tv_cine:
     name: "TV & Cine"
     emoji: "🎬"
+    amazon_nodes:
+      - "Televisores"
+      - "Películas y TV"
+      - "DVD y Blu-ray"
     keywords:
       - "televisor"
       - "Smart TV"
@@ -193,6 +223,10 @@ categories:
   wearables:
     name: "Wearables & Deporte"
     emoji: "⌚"
+    amazon_nodes:
+      - "Deportes y aire libre"
+      - "Sports & Outdoors"
+      - "Relojes"
     keywords:
       - "smartwatch"
       - "reloj inteligente"
@@ -216,7 +250,8 @@ categories:
   otras_ofertas:
     name: "Otras Ofertas"
     emoji: "🔥"
-    keywords: []          # Vacío = cualquier producto pasa
+    amazon_nodes: []        # Vacío = no filtra por categoría Amazon
+    keywords: []            # Vacío = cualquier producto pasa
     exclude_keywords: []
     min_discount_percent: 20
     max_price: 0

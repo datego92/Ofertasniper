@@ -23,17 +23,24 @@ def main() -> None:
     offers = fetch_top_drops(domain="es", min_discount=min_discount)
     print(f"[main] Raw offers found: {len(offers)}")
 
-    # Enriquecer con imagen — primero desde caché, luego directo desde Amazon
+    # Enriquecer con imagen y categorías Amazon — caché primero, luego scraping
     cache_updated = False
     for offer in offers:
         asin = offer["asin"]
         if asin in title_cache:
             offer["title"] = title_cache[asin].get("title", offer["title"])
-            offer["image_url"] = title_cache[asin].get("image_url")
+            offer["image_url"] = title_cache[asin].get("image_url") or offer.get("image_url")
+            offer["amazon_cats"] = title_cache[asin].get("amazon_cats", [])
         else:
-            details = fetch_product_details(asin, domain="es")
+            # Pasar imagen del RSS para no hacer petición extra si ya la tenemos
+            details = fetch_product_details(asin, domain="es", existing_image=offer.get("image_url"))
             offer["image_url"] = details["image_url"]
-            title_cache[asin] = {"title": offer["title"], "image_url": details["image_url"]}
+            offer["amazon_cats"] = details["amazon_cats"]
+            title_cache[asin] = {
+                "title": offer["title"],
+                "image_url": details["image_url"],
+                "amazon_cats": details["amazon_cats"],
+            }
             cache_updated = True
 
     if cache_updated:

@@ -1,3 +1,4 @@
+import json
 import re
 import requests
 import feedparser
@@ -81,46 +82,116 @@ def fetch_top_drops(domain: str = "es", min_discount: int = 0) -> list[dict]:
     return offers
 
 
-def _fetch_image_from_amazon(asin: str, domain: str = "es") -> Optional[str]:
-    """Intenta obtener la imagen del producto directamente desde Amazon.
-    No requiere ScraperAPI — usa requests con cabeceras de navegador.
-    Devuelve la URL de imagen o None si no se puede obtener."""
-    # amazon.es, amazon.co.uk → dominios distintos
+def _extract_amazon_categories(html: str) -> list[str]:
+    """Extrae la jerarquía de categorías de Amazon de la página de producto.
+
+    Intenta en orden:
+    1. JSON-LD BreadcrumbList (más fiable, datos estructurados).
+    2. Breadcrumb HTML wayfinding (fallback).
+
+    Devuelve una lista de strings, ej: ["Electrónica", "Audio y HiFi", "Auriculares"]
+    """
+    # ── Estrategia 1: JSON-LD ──────────────────────────────────────────────────
+    for script in re.findall(r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', html, re.DOTALL):
+        try:
+            data = json.loads(script)
+            # Puede ser un objeto o una lista de objetos
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                if item.get("@type") == "BreadcrumbList":
+                    crumbs = sorted(item.get("itemListElement", []), key=lambda x: x.get("position", 0))
+                    names = [c.get("name", "").strip() for c in crumbs if c.get("name")]
+                    if names:
+                        return names
+        except (json.JSONDecodeError, AttributeError):
+            continue
+
+    # ── Estrategia 2: HTML wayfinding breadcrumb ───────────────────────────────
+    wayfinding = re.search(
+        r'id=["\']wayfinding-breadcrumbs_feature_div["\'][^>]*>(.*?)</div>',
+        html, re.DOTALL
+    )
+    if wayfinding:
+        names = re.findall(r'<a[^>]*>\s*([^<]+?)\s*</a>', wayfinding.group(1))
+        if names:
+            return [n.strip() for n in names if n.strip()]
+
+    return []
+
+
+def fetch_product_details(asin: str, domain: str = "es", existing_image: Optional[str] = None) -> dict:
+    """Obtiene categorías de Amazon (y imagen si el RSS no la trajo).
+
+    Hace UNA sola petición a Amazon para:
+    - Extraer el breadcrumb de categorías (siempre necesario para clasificar).
+    - Obtener la imagen si `existing_image` es None (fallback al RSS).
+
+    Devuelve:
+      title      : None (el título ya viene del RSS)
+      image_url  : URL de imagen o None
+      amazon_cats: lista de strings del breadcrumb, ej. ["Videojuegos", "PS5"]
+    """
+    result: dict = {"title": None, "image_url": existing_image, "amazon_cats": []}
+
     tld_map = {"es": "es", "de": "de", "fr": "fr", "it": "it", "uk": "co.uk", "us": "com"}
     tld = tld_map.get(domain, "es")
     url = f"https://www.amazon.{tld}/dp/{asin}"
     try:
         resp = requests.get(url, headers=_AMAZON_HEADERS, timeout=15)
         if resp.status_code != 200:
-            print(f"[scraper] Amazon image fetch: HTTP {resp.status_code} for {asin}")
-            return None
+            print(f"[scraper] {asin}: Amazon HTTP {resp.status_code} — sin categorías")
+            return result
 
-        # og:image suele apuntar a la imagen principal del producto en alta resolución
-        img_match = (
-            re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', resp.text)
-            or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', resp.text)
-        )
-        if img_match:
-            url_img = img_match.group(1)
-            # Asegurarse de que es una imagen del CDN de Amazon, no un placeholder
-            if "ssl-images-amazon.com" in url_img or "media-amazon.com" in url_img:
-                return url_img
+        html = resp.text
+
+        # ── Imagen (solo si el RSS no la proporcionó) ─────────────────────────
+        if not result["image_url"]:
+            img_match = (
+                re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html)
+                or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', html)
+            )
+            if img_match:
+                url_img = img_match.group(1)
+                if "ssl-images-amazon.com" in url_img or "media-amazon.com" in url_img:
+                    result["image_url"] = url_img
+
+        # ── Categorías ────────────────────────────────────────────────────────
+        result["amazon_cats"] = _extract_amazon_categories(html)
+        print(f"[scraper] {asin}: cats={result['amazon_cats']} img={'OK' if result['image_url'] else 'None'}")
 
     except Exception as e:
-        print(f"[scraper] Amazon image fetch error for {asin}: {e}")
+        print(f"[scraper] {asin}: error Amazon: {e}")
+
+    return result
+
+
+def _extract_image_from_entry(entry) -> Optional[str]:
+    """Intenta sacar la imagen del producto del propio entry RSS.
+
+    CamelCamelCamel incluye <img> tags en el HTML del summary/content
+    apuntando al CDN de imágenes de Amazon — sin petición adicional.
+    """
+    # feedparser expone el HTML en summary_detail o content
+    html_sources = []
+    if hasattr(entry, "summary_detail"):
+        html_sources.append(entry.summary_detail.get("value", ""))
+    for c in getattr(entry, "content", []):
+        html_sources.append(c.get("value", ""))
+    html_sources.append(entry.get("summary", ""))
+
+    for html in html_sources:
+        # Buscar <img src="..."> cuya URL apunte al CDN de Amazon
+        for img_url in re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', html):
+            if "ssl-images-amazon.com" in img_url or "media-amazon.com" in img_url:
+                return img_url
+
+    # feedparser también expone enclosures y media:content
+    for enc in getattr(entry, "enclosures", []):
+        url = enc.get("url", "")
+        if "amazon" in url and url.startswith("http"):
+            return url
 
     return None
-
-
-def fetch_product_details(asin: str, domain: str = "es") -> dict:
-    """Obtiene la imagen del producto directamente desde Amazon (gratis, sin APIs externas)."""
-    result = {"title": None, "image_url": None}
-    result["image_url"] = _fetch_image_from_amazon(asin, domain)
-    if result["image_url"]:
-        print(f"[scraper] {asin}: imagen obtenida de Amazon")
-    else:
-        print(f"[scraper] {asin}: no se pudo obtener imagen")
-    return result
 
 
 def _parse_entry(entry) -> Optional[dict]:
@@ -153,11 +224,14 @@ def _parse_entry(entry) -> Optional[dict]:
 
     current_price, original_price, discount_pct = _parse_prices(raw_title, summary)
 
+    # Intentar imagen desde el RSS directamente (sin petición extra)
+    image_url = _extract_image_from_entry(entry)
+
     return {
         "asin": asin,
         "title": clean_title,
         "amazon_url": f"https://www.amazon.es/dp/{asin}",
-        "image_url": None,
+        "image_url": image_url,
         "current_price": current_price,
         "original_price": original_price,
         "discount_pct": discount_pct,
