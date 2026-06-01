@@ -133,10 +133,12 @@ def _fetch_image_from_camel(asin: str, domain: str = "es") -> Optional[str]:
         if resp.status_code != 200:
             print(f"[scraper] CamelCamel img {asin}: HTTP {resp.status_code}")
             return None
-        # Su página de producto embebe la imagen de Amazon directamente
-        for img_url in re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', resp.text):
-            if "ssl-images-amazon.com" in img_url or "media-amazon.com" in img_url:
-                return img_url
+        # Buscar en todos los atributos donde puede estar la URL real:
+        # src directo, y variantes de lazy-loading (data-src, data-lazy, etc.)
+        for attr in ("src", "data-src", "data-lazy", "data-lazy-src", "data-original"):
+            for img_url in re.findall(rf'<img[^>]+{attr}=["\']([^"\']+)["\']', resp.text):
+                if "ssl-images-amazon.com" in img_url or "media-amazon.com" in img_url:
+                    return img_url
         print(f"[scraper] CamelCamel img {asin}: pagina OK pero sin imagen Amazon en el HTML")
     except Exception as e:
         print(f"[scraper] CamelCamel img {asin}: {e}")
