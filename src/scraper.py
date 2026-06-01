@@ -109,69 +109,60 @@ def _extract_amazon_categories(html: str) -> list[str]:
 
 
 def fetch_image(asin: str, domain: str = "es") -> Optional[str]:
-    """Obtiene la imagen del producto desde la página de CamelCamelCamel.
+    """Alias público — delega en fetch_product_details y devuelve solo la imagen."""
+    return fetch_product_details(asin, domain)["image_url"]
 
-    CamelCamelCamel ya es accesible desde GitHub Actions (el RSS funciona),
-    por lo que es más fiable que intentar Amazon directamente (IPs de AWS
-    bloqueadas por Amazon con frecuencia).
+
+def fetch_product_details(asin: str, domain: str = "es") -> dict:
+    """Una sola petición a Amazon para obtener imagen Y categorías.
+
+    Cuando Amazon responde (no siempre desde GitHub Actions / IPs AWS):
+      - Extrae imagen via data-a-dynamic-image o og:image
+      - Extrae categorías via JSON-LD BreadcrumbList o wayfinding HTML
+    Cuando bloquea: devuelve imagen=None, cats=[] y los keywords del YAML
+    actúan de fallback en la clasificación.
     """
-    subdomain = _DOMAIN_SUBDOMAIN.get(domain, "")
-    url = f"https://{subdomain}camelcamelcamel.com/product/{asin}"
-    try:
-        resp = requests.get(url, headers=_HEADERS, timeout=15)
-        if resp.status_code != 200:
-            print(f"[scraper] CamelCamel img {asin}: HTTP {resp.status_code}")
-            return None
-        # Buscar en todos los atributos donde puede estar la URL real:
-        # src directo, y variantes de lazy-loading (data-src, data-lazy, etc.)
-        for attr in ("src", "data-src", "data-lazy", "data-lazy-src", "data-original"):
-            for img_url in re.findall(rf'<img[^>]+{attr}=["\']([^"\']+)["\']', resp.text):
-                if "ssl-images-amazon.com" in img_url or "media-amazon.com" in img_url:
-                    return img_url
-        print(f"[scraper] CamelCamel img {asin}: pagina OK pero sin imagen Amazon en el HTML")
-    except Exception as e:
-        print(f"[scraper] CamelCamel img {asin}: {e}")
-    return None
-
-
-def _fetch_cats_from_amazon(asin: str, domain: str = "es") -> list[str]:
-    """Extrae el breadcrumb de categorías de la página de Amazon.
-
-    Puede fallar desde GitHub Actions (IPs de AWS bloqueadas por Amazon).
-    Devuelve lista vacía si no se puede obtener — la clasificación por keywords
-    actúa de fallback en filter_engine.
-    """
+    result: dict = {"title": None, "image_url": None, "amazon_cats": []}
     tld_map = {"es": "es", "de": "de", "fr": "fr", "it": "it", "uk": "co.uk", "us": "com"}
     tld = tld_map.get(domain, "es")
     url = f"https://www.amazon.{tld}/dp/{asin}"
     try:
         resp = requests.get(url, headers=_AMAZON_HEADERS, timeout=15)
         if resp.status_code != 200:
-            print(f"[scraper] Amazon cats {asin}: HTTP {resp.status_code}")
-            return []
+            print(f"[scraper] {asin}: Amazon HTTP {resp.status_code}")
+            return result
         html = resp.text
-        # Detectar página de CAPTCHA/robot (200 pero sin producto real)
         if "ap/captcha" in html or "robot check" in html.lower():
-            print(f"[scraper] Amazon cats {asin}: bloqueado por CAPTCHA")
-            return []
-        cats = _extract_amazon_categories(html)
-        print(f"[scraper] Amazon cats {asin}: {cats}")
-        return cats
+            print(f"[scraper] {asin}: Amazon CAPTCHA/robot block")
+            return result
+
+        # ── Imagen ────────────────────────────────────────────────────────────
+        dynimg = re.search(r'data-a-dynamic-image=["\'](\{[^"\']+\})["\']', html)
+        if dynimg:
+            try:
+                imgs = json.loads(dynimg.group(1))
+                best = max(imgs.items(), key=lambda kv: kv[1][0] * kv[1][1])[0]
+                if "amazon" in best:
+                    result["image_url"] = best
+            except (json.JSONDecodeError, ValueError, IndexError, KeyError):
+                pass
+        if not result["image_url"]:
+            og = (
+                re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html)
+                or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', html)
+            )
+            if og:
+                u = og.group(1)
+                if "ssl-images-amazon.com" in u or "media-amazon.com" in u:
+                    result["image_url"] = u
+
+        # ── Categorías ────────────────────────────────────────────────────────
+        result["amazon_cats"] = _extract_amazon_categories(html)
+        print(f"[scraper] {asin}: img={'OK' if result['image_url'] else 'None'} cats={result['amazon_cats']}")
+
     except Exception as e:
-        print(f"[scraper] Amazon cats {asin}: {e}")
-        return []
-
-
-def fetch_product_details(asin: str, domain: str = "es") -> dict:
-    """Obtiene imagen (vía CamelCamelCamel) y categorías (vía Amazon) del producto.
-
-    Estrategia imagen  : CamelCamelCamel primero (fiable desde GitHub Actions)
-    Estrategia cats    : Amazon directo (puede fallar — keywords actúan de fallback)
-    """
-    image_url = fetch_image(asin, domain)
-    amazon_cats = _fetch_cats_from_amazon(asin, domain)
-    print(f"[scraper] {asin}: img={'OK' if image_url else 'None'} cats={amazon_cats}")
-    return {"title": None, "image_url": image_url, "amazon_cats": amazon_cats}
+        print(f"[scraper] {asin}: {e}")
+    return result
 
 
 def _parse_entry(entry) -> Optional[dict]:
