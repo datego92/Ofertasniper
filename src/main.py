@@ -32,8 +32,7 @@ def main() -> None:
             offer["image_url"] = title_cache[asin].get("image_url") or offer.get("image_url")
             offer["amazon_cats"] = title_cache[asin].get("amazon_cats", [])
         else:
-            # Pasar imagen del RSS para no hacer petición extra si ya la tenemos
-            details = fetch_product_details(asin, domain="es", existing_image=offer.get("image_url"))
+            details = fetch_product_details(asin, domain="es")
             offer["image_url"] = details["image_url"]
             offer["amazon_cats"] = details["amazon_cats"]
             title_cache[asin] = {
