@@ -29,17 +29,19 @@ def main() -> None:
         asin = offer["asin"]
         if asin in title_cache:
             offer["title"] = title_cache[asin].get("title", offer["title"])
-            offer["amazon_cats"] = title_cache[asin].get("amazon_cats", [])
             cached_img = title_cache[asin].get("image_url")
-            if cached_img:
+            cached_cats = title_cache[asin].get("amazon_cats", [])
+            if cached_img and cached_cats:
                 offer["image_url"] = cached_img
+                offer["amazon_cats"] = cached_cats
             else:
-                # Imagen no estaba en caché (ej. añadido antes del fix) — intentar ahora
-                img = fetch_image(asin, domain="es")
-                offer["image_url"] = img
-                if img:
-                    title_cache[asin]["image_url"] = img
-                    cache_updated = True
+                # Imagen o categorías faltan — re-fetch Amazon para obtener ambas
+                details = fetch_product_details(asin, domain="es")
+                offer["image_url"] = details["image_url"] or cached_img
+                offer["amazon_cats"] = details["amazon_cats"] or cached_cats
+                title_cache[asin]["image_url"] = offer["image_url"]
+                title_cache[asin]["amazon_cats"] = offer["amazon_cats"]
+                cache_updated = True
         else:
             details = fetch_product_details(asin, domain="es")
             offer["image_url"] = details["image_url"]
