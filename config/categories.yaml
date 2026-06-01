@@ -151,6 +151,9 @@ categories:
       - "cómic"
       - "manga"
       - "libro de"
+      - "enciclopedia"
+      - "diccionario"
+      - "atlas"
     exclude_keywords: []
     min_discount_percent: 20
     max_price: 30
@@ -213,6 +216,9 @@ categories:
       - "Fire TV"
       - "Chromecast"
       - "Apple TV"
+      - "DVD"
+      - "4K Ultra HD"
+      - " TV "
     exclude_keywords: []
     min_discount_percent: 15
     max_price: 0

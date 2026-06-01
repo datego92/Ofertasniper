@@ -144,14 +144,27 @@ def fetch_product_details(asin: str, domain: str = "es", existing_image: Optiona
 
         html = resp.text
 
-        # ── Imagen (solo si el RSS no la proporcionó) ─────────────────────────
+        # ── Imagen ────────────────────────────────────────────────────────────
+        # data-a-dynamic-image es un JSON {"url":[w,h],...} en el HTML estático.
+        # Es más fiable que og:image porque siempre apunta a la foto principal.
+        dynimg = re.search(r'data-a-dynamic-image=["\'](\{[^"\']+\})["\']', html)
+        if dynimg:
+            try:
+                imgs = json.loads(dynimg.group(1))
+                # La URL con mayor área = imagen de mayor resolución
+                best = max(imgs.items(), key=lambda kv: kv[1][0] * kv[1][1])[0]
+                if "amazon" in best:
+                    result["image_url"] = best
+            except (json.JSONDecodeError, ValueError, IndexError, KeyError):
+                pass
+
         if not result["image_url"]:
-            img_match = (
+            og = (
                 re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html)
                 or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', html)
             )
-            if img_match:
-                url_img = img_match.group(1)
+            if og:
+                url_img = og.group(1)
                 if "ssl-images-amazon.com" in url_img or "media-amazon.com" in url_img:
                     result["image_url"] = url_img
 
@@ -163,35 +176,6 @@ def fetch_product_details(asin: str, domain: str = "es", existing_image: Optiona
         print(f"[scraper] {asin}: error Amazon: {e}")
 
     return result
-
-
-def _extract_image_from_entry(entry) -> Optional[str]:
-    """Intenta sacar la imagen del producto del propio entry RSS.
-
-    CamelCamelCamel incluye <img> tags en el HTML del summary/content
-    apuntando al CDN de imágenes de Amazon — sin petición adicional.
-    """
-    # feedparser expone el HTML en summary_detail o content
-    html_sources = []
-    if hasattr(entry, "summary_detail"):
-        html_sources.append(entry.summary_detail.get("value", ""))
-    for c in getattr(entry, "content", []):
-        html_sources.append(c.get("value", ""))
-    html_sources.append(entry.get("summary", ""))
-
-    for html in html_sources:
-        # Buscar <img src="..."> cuya URL apunte al CDN de Amazon
-        for img_url in re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', html):
-            if "ssl-images-amazon.com" in img_url or "media-amazon.com" in img_url:
-                return img_url
-
-    # feedparser también expone enclosures y media:content
-    for enc in getattr(entry, "enclosures", []):
-        url = enc.get("url", "")
-        if "amazon" in url and url.startswith("http"):
-            return url
-
-    return None
 
 
 def _parse_entry(entry) -> Optional[dict]:
@@ -224,14 +208,11 @@ def _parse_entry(entry) -> Optional[dict]:
 
     current_price, original_price, discount_pct = _parse_prices(raw_title, summary)
 
-    # Intentar imagen desde el RSS directamente (sin petición extra)
-    image_url = _extract_image_from_entry(entry)
-
     return {
         "asin": asin,
         "title": clean_title,
         "amazon_url": f"https://www.amazon.es/dp/{asin}",
-        "image_url": image_url,
+        "image_url": None,
         "current_price": current_price,
         "original_price": original_price,
         "discount_pct": discount_pct,
