@@ -29,26 +29,15 @@ _AMAZON_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
 }
 
-# CamelCamelCamel: categorías que mapea su feed RSS
-# https://es.camelcamelcamel.com/top_drops/feed?category=X
+# Categorías soportadas por es.camelcamelcamel.com/top_drops/feed
+# Las demás (books, toys, kitchen, sports…) devuelven feed malformado en ES
 _CAMEL_CATEGORIES = [
-    "",               # todas (sin filtro)
+    "",             # todas (sin filtro de categoría)
     "video_games",
     "software",
     "electronics",
     "pc",
     "music",
-    "books",
-    "toys",
-    "kitchen",
-    "sports",
-    "tools",
-    "clothing",
-    "beauty",
-    "health",
-    "automotive",
-    "grocery",
-    "movies",
 ]
 
 
@@ -119,7 +108,7 @@ def _extract_amazon_categories(html: str) -> list[str]:
     return []
 
 
-def _fetch_image_from_camel(asin: str, domain: str = "es") -> Optional[str]:
+def fetch_image(asin: str, domain: str = "es") -> Optional[str]:
     """Obtiene la imagen del producto desde la página de CamelCamelCamel.
 
     CamelCamelCamel ya es accesible desde GitHub Actions (el RSS funciona),
@@ -179,7 +168,7 @@ def fetch_product_details(asin: str, domain: str = "es") -> dict:
     Estrategia imagen  : CamelCamelCamel primero (fiable desde GitHub Actions)
     Estrategia cats    : Amazon directo (puede fallar — keywords actúan de fallback)
     """
-    image_url = _fetch_image_from_camel(asin, domain)
+    image_url = fetch_image(asin, domain)
     amazon_cats = _fetch_cats_from_amazon(asin, domain)
     print(f"[scraper] {asin}: img={'OK' if image_url else 'None'} cats={amazon_cats}")
     return {"title": None, "image_url": image_url, "amazon_cats": amazon_cats}

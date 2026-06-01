@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from scraper import fetch_top_drops, fetch_product_details
+from scraper import fetch_top_drops, fetch_product_details, fetch_image
 from filter_engine import load_categories, filter_offers
 from notifier import send_offers
 from dedup import load_sent, save_sent, filter_new, mark_sent
@@ -29,8 +29,17 @@ def main() -> None:
         asin = offer["asin"]
         if asin in title_cache:
             offer["title"] = title_cache[asin].get("title", offer["title"])
-            offer["image_url"] = title_cache[asin].get("image_url") or offer.get("image_url")
             offer["amazon_cats"] = title_cache[asin].get("amazon_cats", [])
+            cached_img = title_cache[asin].get("image_url")
+            if cached_img:
+                offer["image_url"] = cached_img
+            else:
+                # Imagen no estaba en caché (ej. añadido antes del fix) — intentar ahora
+                img = fetch_image(asin, domain="es")
+                offer["image_url"] = img
+                if img:
+                    title_cache[asin]["image_url"] = img
+                    cache_updated = True
         else:
             details = fetch_product_details(asin, domain="es")
             offer["image_url"] = details["image_url"]
